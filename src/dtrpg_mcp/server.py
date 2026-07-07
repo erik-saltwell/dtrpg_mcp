@@ -24,29 +24,42 @@ def _get_client() -> DriveThruRPGClient:
 
 
 @mcp.tool
-def search(
-    query: str,
-    in_library: bool = True,
-    max_values: int = 10,
-) -> list[dict]:
-    """Search DriveThruRPG for products matching a title query.
+def search_library(query: str, max_values: int = 10) -> list[dict]:
+    """Search products the caller has already purchased in their
+    DriveThruRPG library.
 
     Args:
         query: Text to match against product titles (case-insensitive
-            substring match for library search; keyword match for catalog
-            search).
-        in_library: If true (default), search only the products already
-            purchased in the caller's DriveThruRPG library. If false,
-            search the full public DriveThruRPG catalog instead.
+            substring match).
         max_values: Maximum number of results to return (default 10).
 
     Returns:
         A list of product detail objects, each with: product_id,
-        order_product_id (null for catalog results), title, description,
-        publisher, authors, and game_system (null when not available).
+        order_product_id, title, description, publisher, authors, and
+        game_system (null when not available).
     """
     client = _get_client()
-    results = client.search(query, in_library=int(in_library), max_values=max_values)
+    results = client.search_library(query, max_values=max_values)
+    return [asdict(r) for r in results]
+
+
+@mcp.tool
+def search_products(query: str, max_values: int = 10) -> list[dict]:
+    """Search the general public DriveThruRPG catalog for products, not
+    limited to the caller's purchased library.
+
+    Args:
+        query: Text to match against product titles (keyword match).
+        max_values: Maximum number of results to return (default 10).
+
+    Returns:
+        A list of product detail objects, each with: product_id,
+        order_product_id (always null here, since these are not
+        necessarily owned), title, description, publisher, authors, and
+        game_system (null when not available).
+    """
+    client = _get_client()
+    results = client.search_products(query, max_values=max_values)
     return [asdict(r) for r in results]
 
 

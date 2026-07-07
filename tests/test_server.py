@@ -16,19 +16,34 @@ def clear_client_cache():
 def fake_client(monkeypatch):
     class FakeClient:
         def __init__(self):
-            self.calls = []
+            self.library_calls = []
+            self.product_calls = []
 
-        def search(self, query, in_library=1, max_values=10):
-            self.calls.append((query, in_library, max_values))
+        def search_library(self, query, max_values=10):
+            self.library_calls.append((query, max_values))
             return [
                 ProductDetails(
                     product_id=1,
-                    order_product_id=2 if in_library else None,
-                    title=f"Result for {query}",
+                    order_product_id=2,
+                    title=f"Library result for {query}",
+                    description="desc",
+                    publisher="pub",
+                    authors=[],
+                    game_system="Fantasy",
+                )
+            ]
+
+        def search_products(self, query, max_values=10):
+            self.product_calls.append((query, max_values))
+            return [
+                ProductDetails(
+                    product_id=1,
+                    order_product_id=None,
+                    title=f"Catalog result for {query}",
                     description="desc",
                     publisher="pub",
                     authors=["author"],
-                    game_system="Fantasy" if in_library else None,
+                    game_system=None,
                 )
             ]
 
@@ -40,48 +55,56 @@ def fake_client(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_search_tool_is_registered():
+async def test_tools_are_registered():
     tools = await mcp.list_tools()
-    names = [t.name for t in tools]
-    assert names == ["search"]
+    names = sorted(t.name for t in tools)
+    assert names == ["search_library", "search_products"]
 
 
 @pytest.mark.asyncio
-async def test_search_tool_library_call(fake_client):
+async def test_search_library_tool_call(fake_client):
     async with Client(mcp) as client:
         result = await client.call_tool(
-            "search", {"query": "dungeon", "in_library": True, "max_values": 3}
+            "search_library", {"query": "dungeon", "max_values": 3}
         )
 
     assert result.data == [
         {
             "product_id": 1,
             "order_product_id": 2,
-            "title": "Result for dungeon",
+            "title": "Library result for dungeon",
             "description": "desc",
             "publisher": "pub",
-            "authors": ["author"],
+            "authors": [],
             "game_system": "Fantasy",
         }
     ]
-    assert fake_client.calls == [("dungeon", 1, 3)]
+    assert fake_client.library_calls == [("dungeon", 3)]
 
 
 @pytest.mark.asyncio
-async def test_search_tool_catalog_call(fake_client):
+async def test_search_products_tool_call(fake_client):
     async with Client(mcp) as client:
         result = await client.call_tool(
-            "search", {"query": "bardo", "in_library": False, "max_values": 5}
+            "search_products", {"query": "bardo", "max_values": 5}
         )
 
     assert result.data[0]["order_product_id"] is None
     assert result.data[0]["game_system"] is None
-    assert fake_client.calls == [("bardo", 0, 5)]
+    assert fake_client.product_calls == [("bardo", 5)]
 
 
 @pytest.mark.asyncio
-async def test_search_tool_defaults(fake_client):
+async def test_search_library_tool_defaults(fake_client):
     async with Client(mcp) as client:
-        await client.call_tool("search", {"query": "x"})
+        await client.call_tool("search_library", {"query": "x"})
 
-    assert fake_client.calls == [("x", 1, 10)]
+    assert fake_client.library_calls == [("x", 10)]
+
+
+@pytest.mark.asyncio
+async def test_search_products_tool_defaults(fake_client):
+    async with Client(mcp) as client:
+        await client.call_tool("search_products", {"query": "x"})
+
+    assert fake_client.product_calls == [("x", 10)]

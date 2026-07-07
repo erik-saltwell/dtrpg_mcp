@@ -1,6 +1,8 @@
+import json as json_lib
+
 import responses as responses_lib
 
-from dtrpg_mcp.client import BASE_URL
+from dtrpg_mcp.client import BASE_URL, _LIBRARY_BATCH_SIZE
 
 ORDER_PRODUCTS_PAGE_1 = [
     {
@@ -61,7 +63,7 @@ def test_search_library_filters_by_title_substring(client, mocked_responses):
         status=200,
     )
 
-    results = client.search("dungeon", in_library=1, max_values=10)
+    results = client.search_library("dungeon", max_values=10)
 
     assert len(results) == 1
     assert results[0].product_id == 108028
@@ -86,7 +88,7 @@ def test_search_library_extracts_game_system(client, mocked_responses):
         status=200,
     )
 
-    results = client.search("Inns", in_library=1, max_values=10)
+    results = client.search_library("Inns", max_values=10)
 
     assert len(results) == 1
     assert results[0].game_system == "Fantasy"
@@ -111,7 +113,7 @@ def test_search_library_respects_max_values(client, mocked_responses):
         status=200,
     )
 
-    results = client.search("dungeon", in_library=1, max_values=2)
+    results = client.search_library("dungeon", max_values=2)
 
     assert len(results) == 2
 
@@ -124,7 +126,7 @@ def test_search_catalog_when_not_in_library(client, mocked_responses):
         status=200,
     )
 
-    results = client.search("bardo", in_library=0, max_values=10)
+    results = client.search_products("bardo", max_values=10)
 
     assert len(results) == 1
     assert results[0].product_id == 141936
@@ -154,7 +156,40 @@ def test_reauthenticates_on_401(client, mocked_responses):
         status=200,
     )
 
-    results = client.search("anything", in_library=1, max_values=5)
+    results = client.search_library("anything", max_values=5)
 
     assert results == []
     assert client._session.headers["Authorization"] == "new-token"
+
+
+def test_search_library_scans_multiple_batches_when_no_match(client, mocked_responses):
+    """Regression test: a query with zero matches in a library spanning more
+    than one fetch batch must still terminate once the pages run out,
+    rather than looping or fetching forever."""
+    pages_per_batch = _LIBRARY_BATCH_SIZE
+    total_pages_with_data = pages_per_batch + 2  # spans two batches
+
+    def page_response(request):
+        page = int(request.url.split("page=")[1].split("&")[0])
+        if page > total_pages_with_data:
+            return (200, {}, json_lib.dumps([]))
+        item = {
+            "productId": page,
+            "name": "Something Unrelated",
+            "orderProductId": page,
+            "publisher": {"name": "Pub"},
+            "filters": None,
+            "product": {"description": {"name": "Something Unrelated", "shortDescription": ""}},
+        }
+        return (200, {}, json_lib.dumps([item]))
+
+    mocked_responses.add_callback(
+        responses_lib.GET,
+        BASE_URL + "order_products",
+        callback=page_response,
+        content_type="application/json",
+    )
+
+    results = client.search_library("no-such-title", max_values=10)
+
+    assert results == []

@@ -6,7 +6,8 @@ DriveThruRPG catalog for tabletop RPG products, returning structured details
 (title, description, publisher, authors, game system, and DriveThruRPG
 product id) for each match.
 
-It speaks MCP over **stdio** and exposes a single tool, `search`.
+It speaks MCP over **stdio** and exposes two tools: `search_library` (your
+purchased products) and `search_products` (the general public catalog).
 
 ## Requirements
 
@@ -74,43 +75,59 @@ no args.
 
 ## Tools
 
-### `search`
-
-Search DriveThruRPG for products matching a title query, returning full
-product details for each match.
-
-**Parameters**
-
-| Name          | Type    | Default | Description                                                                                          |
-| ------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------ |
-| `query`       | string  | —       | Text to match against product titles.                                                                |
-| `in_library`  | boolean | `true`  | If `true`, search only products already purchased in your library. If `false`, search the public DriveThruRPG catalog instead. |
-| `max_values`  | integer | `10`    | Maximum number of results to return.                                                                  |
-
-**Returns** a list of objects with:
+Both tools return a list of product detail objects with the same shape:
 
 | Field               | Description                                                                 |
 | ------------------- | ---------------------------------------------------------------------------- |
 | `product_id`        | The DriveThruRPG product id.                                                |
-| `order_product_id`  | The id of your specific purchased order/product; `null` for catalog (not-owned) results. |
+| `order_product_id`  | The id of your specific purchased order/product; `null` for `search_products` results (not necessarily owned). |
 | `title`              | Product title.                                                              |
 | `description`        | A short description/blurb of the product.                                   |
 | `publisher`          | Publisher name.                                                             |
-| `authors`            | List of author names (only populated for catalog search results — DriveThruRPG's library endpoint does not include author data). |
+| `authors`            | List of author names (only populated by `search_products` — DriveThruRPG's library endpoint does not include author data). |
 | `game_system`        | Game system tag, when DriveThruRPG's API surfaces one for the product; otherwise `null`. |
 
-**Example calls**
+### `search_library`
 
-Search your own library for anything with "dungeon" in the title:
+Search products you've already purchased in your DriveThruRPG library.
+
+**Parameters**
+
+| Name          | Type    | Default | Description                             |
+| ------------- | ------- | ------- | ---------------------------------------- |
+| `query`       | string  | —       | Text to match against product titles (case-insensitive substring match). |
+| `max_values`  | integer | `10`    | Maximum number of results to return.    |
+
+**Example call** — anything in your library with "dungeon" in the title:
 
 ```json
 {"query": "dungeon"}
 ```
 
-Search the public catalog (not just your library) for "bardo", capped to 5 results:
+**Performance note:** DriveThruRPG's library endpoint has no server-side
+title filter and is capped at 50 items per page, with each page taking
+several seconds to return. A query that matches nothing (or matches only
+late in a large library) can take tens of seconds to resolve, since pages
+are fetched in concurrent batches rather than one huge request. This is a
+limitation of the underlying API, not something a client-side change can
+fully eliminate.
+
+### `search_products`
+
+Search the general public DriveThruRPG catalog for products — not limited
+to your library, so this also finds things you don't own.
+
+**Parameters**
+
+| Name          | Type    | Default | Description                          |
+| ------------- | ------- | ------- | -------------------------------------- |
+| `query`       | string  | —       | Text to match against product titles (keyword match). |
+| `max_values`  | integer | `10`    | Maximum number of results to return. |
+
+**Example call** — search the catalog for "bardo", capped to 5 results:
 
 ```json
-{"query": "bardo", "in_library": false, "max_values": 5}
+{"query": "bardo", "max_values": 5}
 ```
 
 ## Notes on the DriveThruRPG API
@@ -122,9 +139,9 @@ endpoint usage was reverse-engineered from the community projects
 and verified empirically against the live API. Notably, the per-product
 detail endpoint (`GET products/{id}`) returns `403` for Application Keys
 like the one this tool uses (it appears to require a different auth scope),
-so `search` builds product details from the library (`order_products`) and
-catalog search (`products`) list endpoints instead, both of which work with
-a standard Application Key.
+so `search_library` and `search_products` build product details from the
+library (`order_products`) and catalog search (`products`) list endpoints
+instead, both of which work with a standard Application Key.
 
 ## Development
 
