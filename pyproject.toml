@@ -1,0 +1,34 @@
+[project]
+name = "dtrpg-mcp"
+version = "0.1.0"
+description = "MCP server exposing DriveThruRPG product search (library and catalog) as a tool"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = ["mcp", "drivethrurpg", "dtrpg", "ttrpg", "model-context-protocol"]
+dependencies = [
+    "fastmcp>=3.4.3",
+    "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
+]
+
+[project.scripts]
+dtrpg-mcp = "dtrpg_mcp.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-mock>=3.15.1",
+    "responses>=0.26.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dtrpg_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
