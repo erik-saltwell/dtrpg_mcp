@@ -6,11 +6,26 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 keywords = ["mcp", "drivethrurpg", "dtrpg", "ttrpg", "model-context-protocol"]
+authors = [
+    { name = "Erik Saltwell" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "fastmcp>=3.4.3",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/erik-saltwell/dtrpg_mcp"
+Repository = "https://github.com/erik-saltwell/dtrpg_mcp"
+Issues = "https://github.com/erik-saltwell/dtrpg_mcp/issues"
 
 [project.scripts]
 dtrpg-mcp = "dtrpg_mcp.server:main"
